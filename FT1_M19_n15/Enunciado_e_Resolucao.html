@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="pt">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Enunciado e Resolução - Gestão FCT</title>
+    <style>
+        body {
+            font-family: 'Calibri', 'Arial', sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        h1 {
+            color: #2E74B5;
+            border-bottom: 2px solid #2E74B5;
+            padding-bottom: 10px;
+        }
+
+        h2 {
+            color: #1F4D78;
+            margin-top: 30px;
+        }
+
+        h3 {
+            color: #5B9BD5;
+        }
+
+        code {
+            background-color: #f4f4f4;
+            padding: 2px 5px;
+            font-family: 'Consolas', monospace;
+            color: #c7254e;
+        }
+
+        pre {
+            background-color: #f8f9fa;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            overflow-x: auto;
+            font-family: 'Consolas', monospace;
+            font-size: 0.9em;
+        }
+
+        .note {
+            background-color: #e7f3fe;
+            border-left: 6px solid #2196F3;
+            padding: 10px;
+            margin-bottom: 15px;
+        }
+
+        ul {
+            margin-bottom: 15px;
+        }
+
+        li {
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>Exercício Prático: Aplicação de Gestão de Empresas FCT</h1>
+
+    <p><strong>Módulo:</strong> Programação Web (PHP)<br>
+        <strong>Objetivo:</strong> Desenvolver uma aplicação web para gestão de empresas de estágio (FCT) com
+        autenticação.
+    </p>
+
+    <hr>
+
+    <h2>Parte 1: Enunciado do Exercício</h2>
+
+    <h3>Objetivo Geral</h3>
+    <p>Desenvolver uma plataforma web que permita a utilizadores registados gerir uma lista de empresas parceiras para
+        Formação em Contexto de Trabalho (Estágios).</p>
+
+    <h3>Requisitos Técnicos</h3>
+    <ul>
+        <li>Linguagem: <strong>PHP</strong></li>
+        <li>Base de Dados: <strong>MySQL</strong></li>
+        <li>Servidor: <strong>WampServer</strong> (ou XAMPP)</li>
+        <li>Frontend: <strong>Bootstrap 5</strong> (Recomendado para o layout)</li>
+    </ul>
+
+    <h3>Fases de Desenvolvimento</h3>
+
+    <h4>Fase 1 – Preparação e Base de Dados</h4>
+    <ol>
+        <li>Crie uma base de dados chamada <code>gestao_fct_db</code>.</li>
+        <li>Crie duas tabelas:
+            <ul>
+                <li><code>Utilizadores</code> (id, nome, email, password)</li>
+                <li><code>EmpresasFCT</code> (id, nome, morada, cae, responsavel, professor, id_utilizador)</li>
+            </ul>
+        </li>
+        <li>Crie o ficheiro de ligação à base de dados (<code>config/database.php</code>).</li>
+    </ol>
+
+    <h4>Fase 2 – Autenticação</h4>
+    <ol>
+        <li>Crie um sistema de <strong>registo</strong> onde o utilizador insere nome, email e password.</li>
+        <li>Crie um sistema de <strong>login</strong> que inicie uma sessão PHP.</li>
+        <li>Garanta que as palavras-passe são guardadas de forma segura (hash).</li>
+        <li>Crie a funcionalidade de <strong>logout</strong>.</li>
+    </ol>
+
+    <h4>Fase 3 – Gestão de Empresas (CRUD)</h4>
+    <ol>
+        <li>Crie uma página para <strong>listar</strong> todas as empresas inseridas pelo utilizador autenticado.</li>
+        <li>Crie um formulário para <strong>adicionar</strong> novas empresas.</li>
+        <li>Permita <strong>editar</strong> e <strong>eliminar</strong> empresas existentes.</li>
+    </ol>
+
+    <hr>
+
+    <h2>Parte 2: Resolução (Código Fonte)</h2>
+
+    <h3>1. Script da Base de Dados (SQL)</h3>
+    <p>Execute este script no separador SQL do phpMyAdmin:</p>
+
+    <pre>
+CREATE DATABASE IF NOT EXISTS gestao_fct_db;
+USE gestao_fct_db;
+
+CREATE TABLE Utilizadores (
+    id_utilizador INT AUTO_INCREMENT PRIMARY KEY,
+    nome VARCHAR(100) NOT NULL,
+    email VARCHAR(100) NOT NULL UNIQUE,
+    password VARCHAR(255) NOT NULL,
+    data_registo DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE EmpresasFCT (
+    id_empresa INT AUTO_INCREMENT PRIMARY KEY,
+    nome_empresa VARCHAR(150) NOT NULL,
+    morada TEXT,
+    CAE VARCHAR(10),
+    responsavel VARCHAR(100),
+    nome_professor VARCHAR(100),
+    data_criacao DATETIME DEFAULT CURRENT_TIMESTAMP,
+    id_utilizador INT,
+    FOREIGN KEY (id_utilizador) REFERENCES Utilizadores(id_utilizador)
+);
+</pre>
+
+    <h3>2. Configuração (config/database.php)</h3>
+    <pre>
+&lt;?php
+$host = 'localhost';
+$db = 'gestao_fct_db';
+$user = 'root';
+$pass = '';
+
+try {
+    $pdo = new PDO("mysql:host=$host;dbname=$db", $user, $pass);
+    $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+} catch(PDOException $e) {
+    die("Erro: " . $e->getMessage());
+}
+?&gt;
+</pre>
+
+    <h3>3. Registo de Utilizador (auth/register.php)</h3>
+    <pre>
+&lt;?php
+require_once '../config/database.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $nome = $_POST['nome'];
+    $email = $_POST['email'];
+    // Hash da password para segurança
+    $pass = password_hash($_POST['password'], PASSWORD_DEFAULT);
+    
+    $sql = "INSERT INTO Utilizadores (nome, email, password) VALUES (?, ?, ?)";
+    $stmt = $pdo->prepare($sql);
+    
+    if($stmt->execute([$nome, $email, $pass])) {
+        echo "Utilizador registado com sucesso!";
+    }
+}
+?&gt;
+</pre>
+
+    <h3>4. Login (auth/login.php)</h3>
+    <pre>
+&lt;?php
+session_start();
+require_once '../config/database.php';
+
+if ($_SERVER["REQUEST_METHOD"] == "POST") {
+    $email = $_POST['email'];
+    $pass = $_POST['password'];
+
+    $stmt = $pdo->prepare("SELECT * FROM Utilizadores WHERE email = ?");
+    $stmt->execute([$email]);
+    $user = $stmt->fetch();
+
+    if ($user && password_verify($pass, $user['password'])) {
+        $_SESSION['user_id'] = $user['id_utilizador'];
+        header("Location: ../dashboard.php");
+    } else {
+        echo "Login inválido";
+    }
+}
+?&gt;
+</pre>
+
+    <h3>5. Listar Empresas (companies/index.php)</h3>
+    <pre>
+&lt;?php
+session_start();
+require_once '../config/database.php';
+
+if (!isset($_SESSION['user_id'])) header("Location: ../auth/login.php");
+
+$stmt = $pdo->prepare("SELECT * FROM EmpresasFCT WHERE id_utilizador = ?");
+$stmt->execute([$_SESSION['user_id']]);
+$empresas = $stmt->fetchAll();
+?&gt;
+
+&lt;table border="1"&gt;
+    &lt;tr&gt;&lt;th&gt;Nome&lt;/th&gt;&lt;th&gt;Ações&lt;/th&gt;&lt;/tr&gt;
+    &lt;?php foreach($empresas as $emp): ?&gt;
+    &lt;tr&gt;
+        &lt;td&gt;&lt;?= htmlspecialchars($emp['nome_empresa']) ?&gt;&lt;/td&gt;
+        &lt;td&gt;
+            &lt;a href="edit.php?id=&lt;?= $emp['id_empresa'] ?&gt;"&gt;Editar&lt;/a&gt;
+        &lt;/td&gt;
+    &lt;/tr&gt;
+    &lt;?php endforeach; ?&gt;
+&lt;/table&gt;
+</pre>
+
+</body>
+
+</html>
